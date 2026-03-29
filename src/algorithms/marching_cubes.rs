@@ -1,5 +1,6 @@
 //! Реализация алгоритма Marching Cubes
 
+use glam::Vec3;
 use crate::core::{IsosurfaceExtractor, MeshData, SdfField};
 // use rayon::prelude::*;
 
@@ -298,25 +299,25 @@ const TRI_TABLE: [[i8; 16]; 256] = [
     [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
 ];
 
-/// 3D точка (альтернатива: [f64; 3], glam::Vec3, и т.д.)
-#[derive(Clone, Copy, Debug)]
-pub struct Vertex {
-    pub x: f32,  // было f64
-    pub y: f32,
-    pub z: f32,
-}
+const CORNER_OFFSETS: [[usize; 3]; 8] = [
+    [0, 0, 0], // 0
+    [1, 0, 0], // 1
+    [1, 1, 0], // 2
+    [0, 1, 0], // 3
+    [0, 0, 1], // 4
+    [1, 0, 1], // 5
+    [1, 1, 1], // 6
+    [0, 1, 1], // 7
+];
 
-impl Vertex {
-    #[inline]
-    pub fn new(x: f32, y: f32, z: f32) -> Self {
-        Self { x, y, z }
-    }
+const EDGES: [(usize, usize); 12] = [
+    (0, 1), (1, 2), (2, 3), (3, 0), // нижняя грань
+    (4, 5), (5, 6), (6, 7), (7, 4), // верхняя грань
+    (0, 4), (1, 5), (2, 6), (3, 7), // вертикальные рёбра
+];
 
-    #[inline]
-    pub fn to_array(&self) -> [f32; 3] {
-        [self.x, self.y, self.z]
-    }
-}
+
+pub type Vertex = Vec3;  // или просто используем Vec3 напрямую
 
 /// Ячейка сетки: 8 вершин + 8 скалярных значений
 #[derive(Clone, Copy, Debug)]
@@ -342,44 +343,15 @@ impl Triangle {
 
 /// Линейная интерполяция точки пересечения изоповерхности с ребром
 #[inline]
-fn vertex_interp(isolevel: f32, p1: Vertex, p2: Vertex, val1: f32, val2: f32) -> [f32; 3] {
+fn vertex_interp(isolevel: f32, p1: Vec3, p2: Vec3, val1: f32, val2: f32) -> Vec3 {
     const EPS: f32 = 1e-5;
     
-    if (isolevel - val1).abs() < EPS {
-        return [
-            p1.x,
-            p1.y,
-            p1.z,
-        ]
-    }
-    if (isolevel - val2).abs() < EPS {
-        return [
-            p2.x,
-            p2.y,
-            p2.z,
-        ]
-    }
-    if (val1 - val2).abs() < EPS {
-        return [
-            p1.x,
-            p1.y,
-            p1.z,
-        ]
-    }
+    if (isolevel - val1).abs() < EPS { return p1; }
+    if (isolevel - val2).abs() < EPS { return p2; }
+    if (val1 - val2).abs() < EPS { return p1; }
     
     let mu = (isolevel - val1) / (val2 - val1);
-    [
-        p1.x + mu * (p2.x - p1.x),
-        p1.y + mu * (p2.y - p1.y),
-        p1.z + mu * (p2.z - p1.z),
-    ]
-
-    // let mu = 0.5;
-    // [
-    //     p1.x + mu * (p2.x - p1.x),
-    //     p1.y + mu * (p2.y - p1.y),
-    //     p1.z + mu * (p2.z - p1.z),
-    // ]
+    p1.lerp(p2, mu)  // ← встроенная линейная интерполяция
 }
 
 /// Marching Cubes экстрактор
@@ -397,7 +369,7 @@ impl MarchingCubes {
     }
 
     /// Вычисление нормали через центральные разности
-    fn compute_normal(sdf: &SdfField, x: usize, y: usize, z: usize) -> [f32; 3] {
+    fn compute_normal(sdf: &SdfField, x: usize, y: usize, z: usize) -> Vec3 {
         let [res_x, res_y, res_z] = sdf.resolution;
         
         // Безопасные соседи с проверкой границ
@@ -412,11 +384,8 @@ impl MarchingCubes {
         let dy = (sdf.get(x, y_next, z) - sdf.get(x, y_prev, z)) * 0.5;
         let dz = (sdf.get(x, y, z_next) - sdf.get(x, y, z_prev)) * 0.5;
 
-        let len = (dx * dx + dy * dy + dz * dz).sqrt();
-        if len < 1e-5 {
-            return [0.0, 1.0, 0.0];
-        }
-        [dx / len, dy / len, dz / len]
+        let normal = Vec3::new(dx, dy, dz);
+        normal.try_normalize().unwrap_or(Vec3::Y)  // ← безопасно и читаемо
     }
 }
 
@@ -443,123 +412,57 @@ impl IsosurfaceExtractor for MarchingCubes {
             sdf.size[1] / res_y as f32,
             sdf.size[2] / res_z as f32,
         ];
+        let offset = [
+            sdf.size[0] / 2.0,
+            sdf.size[1] / 2.0,
+            sdf.size[2] / 2.0,
+        ];
 
         // Проходим по всем вокселям
         for z in 0..res_z - 1 {
             for y in 0..res_y - 1 {
                 for x in 0..res_x - 1 {
 
-
-                    let offset = [
-                        sdf.size[0] / 2.0,
-                        sdf.size[1] / 2.0,
-                        sdf.size[2] / 2.0,
-                    ];
-
                     let mut grid = GridCell {
                         p: [Vertex::new(0.0, 0.0, 0.0); 8],
                         val: [0.0; 8],
                     };
 
-                    const CORNER_OFFSETS: [[usize; 3]; 8] = [
-                        [0, 0, 0], // 0
-                        [1, 0, 0], // 1
-                        [1, 1, 0], // 2
-                        [0, 1, 0], // 3
-                        [0, 0, 1], // 4
-                        [1, 0, 1], // 5
-                        [1, 1, 1], // 6
-                        [0, 1, 1], // 7
-                    ];
 
-                    // Внутри цикла по ячейкам:
-                    for corner in 0..8 {
-                        let [dx, dy, dz] = CORNER_OFFSETS[corner];
-                        
+                    // ... внутри цикла по ячейкам:
+
+                    // 1. Заполняем углы
+                    for (corner, &[dx, dy, dz]) in CORNER_OFFSETS.iter().enumerate() {
                         let gx = x + dx;
                         let gy = y + dy;
                         let gz = z + dz;
                         
                         grid.val[corner] = sdf.get(gx, gy, gz);
-                        
-                        let px = (gx as f32) * step[0] - offset[0];
-                        let py = (gy as f32) * step[1] - offset[1];
-                        let pz = (gz as f32) * step[2] - offset[2];
-                        grid.p[corner] = Vertex::new(px, py, pz);
+                        grid.p[corner] = Vertex::new(
+                            gx as f32 * step[0] - offset[0],
+                            gy as f32 * step[1] - offset[1],
+                            gz as f32 * step[2] - offset[2],
+                        );
                     }
 
-                    // Теперь cube_index считается корректно
-                    let mut cubeindex  = 0u16;
-                    if (grid.val[0] < iso_level) { 
-                        cubeindex |= 1;
-                    }
-                    if (grid.val[1] < iso_level) { 
-                        cubeindex |= 2;
-                    }
-                    if (grid.val[2] < iso_level) { 
-                        cubeindex |= 4;
-                    }
-                    if (grid.val[3] < iso_level) { 
-                        cubeindex |= 8;
-                    }
-                    if (grid.val[4] < iso_level) { 
-                        cubeindex |= 16;
-                    }
-                    if (grid.val[5] < iso_level) { 
-                        cubeindex |= 32;
-                    }
-                    if (grid.val[6] < iso_level) { 
-                        cubeindex |= 64;
-                    }
-                    if (grid.val[7] < iso_level) { 
-                        cubeindex |= 128;
-                    }
+                    // 2. Считаем cubeindex
+                    let cubeindex = grid.val.iter()
+                        .enumerate()
+                        .fold(0u16, |idx, (i, &v)| idx | ((v < iso_level) as u16) << i);
 
+                    // 3. Пропускаем пустые кубы
                     if EDGE_TABLE[cubeindex as usize] == 0 {
                         continue;
                     }
 
+                    // 4. Интерполируем вершины на рёбрах
+                    let mut vertlist = [Vertex::new(0.0, 0.0, 0.0); 12];
+                    let edge_mask = EDGE_TABLE[cubeindex as usize];
 
-
-                    // Находим вершины на рёбрах
-                    // Находим точки пересечения с рёбрами куба
-                    let mut vertlist = [[0.0f32; 3]; 12];
-
-                    if EDGE_TABLE[cubeindex as usize] & 1 != 0 {
-                        vertlist[0] = vertex_interp(iso_level, grid.p[0], grid.p[1], grid.val[0], grid.val[1]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 2 != 0 {
-                        vertlist[1] = vertex_interp(iso_level, grid.p[1], grid.p[2], grid.val[1], grid.val[2]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 4 != 0 {
-                        vertlist[2] = vertex_interp(iso_level, grid.p[2], grid.p[3], grid.val[2], grid.val[3]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 8 != 0 {
-                        vertlist[3] = vertex_interp(iso_level, grid.p[3], grid.p[0], grid.val[3], grid.val[0]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 16 != 0 {
-                        vertlist[4] = vertex_interp(iso_level, grid.p[4], grid.p[5], grid.val[4], grid.val[5]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 32 != 0 {
-                        vertlist[5] = vertex_interp(iso_level, grid.p[5], grid.p[6], grid.val[5], grid.val[6]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 64 != 0 {
-                        vertlist[6] = vertex_interp(iso_level, grid.p[6], grid.p[7], grid.val[6], grid.val[7]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 128 != 0 {
-                        vertlist[7] = vertex_interp(iso_level, grid.p[7], grid.p[4], grid.val[7], grid.val[4]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 256 != 0 {
-                        vertlist[8] = vertex_interp(iso_level, grid.p[0], grid.p[4], grid.val[0], grid.val[4]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 512 != 0 {
-                        vertlist[9] = vertex_interp(iso_level, grid.p[1], grid.p[5], grid.val[1], grid.val[5]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 1024 != 0 {
-                        vertlist[10] = vertex_interp(iso_level, grid.p[2], grid.p[6], grid.val[2], grid.val[6]);
-                    }
-                    if EDGE_TABLE[cubeindex as usize] & 2048 != 0 {
-                        vertlist[11] = vertex_interp(iso_level, grid.p[3], grid.p[7], grid.val[3], grid.val[7]);
+                    for (i, &(a, b)) in EDGES.iter().enumerate() {
+                        if edge_mask & (1 << i) != 0 {
+                            vertlist[i] = vertex_interp(iso_level, grid.p[a], grid.p[b], grid.val[a], grid.val[b]);
+                        }
                     }
 
 

@@ -1,9 +1,10 @@
 //! Структура для хранения данных меша (агностичная от рендерера)
+use glam::Vec3;
 
 #[derive(Debug, Clone)]
 pub struct MeshData {
-    pub positions: Vec<[f32; 3]>,
-    pub normals: Vec<[f32; 3]>,
+    pub positions: Vec<Vec3>,
+    pub normals: Vec<Vec3>,
     pub indices: Vec<u32>,
 }
 
@@ -26,12 +27,12 @@ impl MeshData {
 
     pub fn add_triangle(
         &mut self,
-        v0: [f32; 3],
-        v1: [f32; 3],
-        v2: [f32; 3],
-        n0: [f32; 3],
-        n1: [f32; 3],
-        n2: [f32; 3],
+        v0: Vec3,
+        v1: Vec3,
+        v2: Vec3,
+        n0: Vec3,
+        n1: Vec3,
+        n2: Vec3,
     ) {
         let base = self.positions.len() as u32;
         self.positions.extend([v0, v1, v2]);
