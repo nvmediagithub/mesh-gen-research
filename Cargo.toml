@@ -1,0 +1,49 @@
+[package]
+name = "mesh-gen-research"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.18.1", features = ["file_watcher"], optional = true }
+
+# Для бенчмарков
+criterion = { version = "0.8.2", features = ["html_reports"] }
+
+# Для профилирования
+tracing = "0.1.44"
+tracing-tracy = "0.11.4"   # Опционально: интеграция с Tracy profiler
+
+# Для генерации шума (полезно для вокселей)
+noise = "0.9.0"
+
+# Для параллельных вычислений
+rayon = "1.11.0"
+
+# Для экспорта мешей (опционально)
+obj-rs = { version = "0.7.4", optional = true}
+
+
+
+[dev-dependencies]
+# Тестовые зависимости
+
+[[bench]]
+name = "mesh_generation"
+harness = false
+
+[features]
+default = ["visual"]
+visual = ["bevy"]
+export = ["obj-rs"]
+profiling = ["bevy/trace"]
+
+marching-cubes = []
+dual-contouring = []
+surface-nets = []
+
+
+[profile.dev]
+opt-level = 1  # Ускоряет разработку
+
+[profile.dev.package."*"]
+opt-level = 3  # Оптимизируем зависимости
