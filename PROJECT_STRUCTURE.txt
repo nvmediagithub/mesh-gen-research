@@ -1,0 +1,66 @@
+================================================================================
+PROJECT STRUCTURE FOR LLM
+Root: C:\Repositories\mesh-gen-research
+================================================================================
+
+📁 DIRECTORY STRUCTURE:
+--------------------------------------------------------------------------------
+📁 mesh-gen-research/
+├── │   📁 benches/
+│   ├── │   │   📄 algorithm_compare.rs (761.0B)
+│   └── │       📄 mesh_generation.rs (1.3KB)
+├── │   📁 scripts/
+│   ├── │   │   📄 extract_rust_docs.py (20.8KB)
+│   ├── │   │   📄 generate_llm_context.py (2.6KB)
+│   └── │       📄 generate_project_structure.py (9.3KB)
+├── │   📁 src/
+│   ├── │   │   📁 algorithms/
+│   │   ├── │   │   │   📄 marching_cubes.rs (24.9KB)
+│   │   └── │   │       📄 mod.rs (803.0B)
+│   ├── │   │   📁 bevy_integration/
+│   │   ├── │   │   │   📄 camera_controller.rs (3.6KB)
+│   │   ├── │   │   │   📄 components.rs (866.0B)
+│   │   ├── │   │   │   📄 mesh_converter.rs (1.1KB)
+│   │   ├── │   │   │   📄 mod.rs (308.0B)
+│   │   └── │   │       📄 systems.rs (1.8KB)
+│   ├── │   │   📁 core/
+│   │   ├── │   │   │   📄 algorithm.rs (615.0B)
+│   │   ├── │   │   │   📄 mesh_data.rs (1.3KB)
+│   │   ├── │   │   │   📄 mod.rs (224.0B)
+│   │   └── │   │       📄 sdf.rs (3.6KB)
+│   ├── │   │   📁 utils/
+│   │   ├── │   │   │   📄 mesh_builder.rs (1.4KB)
+│   │   ├── │   │   │   📄 mod.rs (35.0B)
+│   │   └── │   │       📄 sdf.rs (650.0B)
+│   └── │       📄 main.rs (1.8KB)
+├── │   📁 tests/
+│   └── │       📄 correctness.rs (1.3KB)
+└── 📄 Cargo.toml (1.1KB)
+
+
+📊 PROJECT STATISTICS:
+--------------------------------------------------------------------------------
+Total Files: 22
+Total Directories: 9
+Total Size: 79.9KB
+
+Files by Extension:
+  .rs: 18
+  .py: 3
+  .toml: 1
+
+Top 10 Largest Files:
+  1. src\algorithms\marching_cubes.rs (24.9KB)
+  2. scripts\extract_rust_docs.py (20.8KB)
+  3. scripts\generate_project_structure.py (9.3KB)
+  4. src\bevy_integration\camera_controller.rs (3.6KB)
+  5. src\core\sdf.rs (3.6KB)
+  6. scripts\generate_llm_context.py (2.6KB)
+  7. src\bevy_integration\systems.rs (1.8KB)
+  8. src\main.rs (1.8KB)
+  9. src\utils\mesh_builder.rs (1.4KB)
+  10. src\core\mesh_data.rs (1.3KB)
+
+================================================================================
+END OF PROJECT STRUCTURE
+================================================================================
